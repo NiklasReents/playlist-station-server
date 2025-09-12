@@ -2,11 +2,15 @@ const express = require("express");
 const router = express.Router();
 
 const User = require("../models/user.js");
+const userController = require("../controllers/userController.js");
 
-/* GET users listing. */
-router.get("/", async function (req, res, next) {
-  const users = await User.find().exec();
+// test route (user retrieval)
+router.get("/", async (req, res, next) => {
+  const users = await User.find().sort({ username: "asc" }).exec();
   res.json(users);
 });
+
+// user registration route
+router.post("/register-user", userController.register_user);
 
 module.exports = router;
