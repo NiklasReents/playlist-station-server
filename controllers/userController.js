@@ -1,5 +1,8 @@
 const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 const { body, validationResult } = require("express-validator");
+
+require("dotenv").config();
 
 // import models for user-related database queries
 const User = require("../models/user.js");
@@ -78,6 +81,40 @@ exports.register_user = [
 ];
 
 // log in an existing user (sanitize data, verify password, create auth token)
+exports.login_user = [
+  // sanitize user input
+  body("username").trim().escape(),
+  body("password").trim().escape(),
+  // search user and use password verification function
+  async (req, res, next) => {
+    const user = await User.findOne({
+      username: req.body.username,
+    }).exec();
+
+    if (user) {
+      const validUserData = verifyPassword(
+        req.body.password,
+        user.salt,
+        user.password
+      );
+      // create jwt token and login message and send them to the frontend
+      if (validUserData) {
+        const token = jwt.sign(
+          { username: user.username, email: user.email },
+          process.env.AUTHKEY,
+          { algorithm: "HS256", expiresIn: "1 day" }
+        );
+        const loginMessage = `${user.username} successfully logged in!`;
+        res.json({ token, loginMessage });
+      } else {
+        res.send("Invalid user data!");
+      }
+    } else {
+      // NOTE: implement login lockout after a set number of attempts (id-related login exhaustion with blacklist?)?
+      res.send("No user found!");
+    }
+  },
+];
 
 // search for an existing email in the database (used for "forgot password" button on the frontend)
 

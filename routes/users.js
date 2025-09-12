@@ -13,4 +13,7 @@ router.get("/", async (req, res, next) => {
 // user registration route
 router.post("/register-user", userController.register_user);
 
+// user login route
+router.post("/login-user", userController.login_user);
+
 module.exports = router;
