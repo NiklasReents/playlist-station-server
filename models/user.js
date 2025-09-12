@@ -1,5 +1,12 @@
-/*
+const mongoose = require("mongoose");
 
-// model: user -> properties: username (string), email (string), password (string, hex-based hash), salt (string, hex-based)
+const Schema = mongoose.Schema;
 
-*/
+const userSchema = new Schema({
+  username: { type: String, required: true, minLength: 1, maxLength: 100 },
+  email: { type: String, required: true, minLength: 1, maxLength: 100 },
+  password: { type: String, required: true, minLength: 8, maxLength: 128 },
+  salt: { type: String, required: true, minLength: 8, maxLength: 128 },
+});
+
+module.exports = mongoose.model("User", userSchema);
