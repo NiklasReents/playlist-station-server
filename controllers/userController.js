@@ -20,7 +20,7 @@ function hashPassword(password) {
   return { salt, hash };
 }
 
-// verify password on user login
+// verify password upon user login
 function verifyPassword(password, salt, hash) {
   const hashedPassword = crypto.scryptSync(password, salt, 64).toString("hex");
   return hashedPassword === hash;
