@@ -3,11 +3,25 @@ const express = require("express");
 const path = require("path");
 const cookieParser = require("cookie-parser");
 const logger = require("morgan");
+const mongoose = require("mongoose");
+
+require("dotenv").config();
 
 const indexRouter = require("./routes/index");
 const usersRouter = require("./routes/users");
 
 const app = express();
+
+// set up database connection via mongoose
+mongoose.set("strictQuery", false);
+
+(async function () {
+  try {
+    await mongoose.connect(process.env.DBCONNECTION);
+  } catch (err) {
+    console.error(err.message);
+  }
+})();
 
 // view engine setup
 app.set("views", path.join(__dirname, "views"));
