@@ -1,5 +1,14 @@
-/*
+const mongoose = require("mongoose");
 
-// model: emailtoken -> properties: token (string, hex-based), createdAt (date with an expiration-property)
+const Schema = mongoose.Schema;
 
-*/
+const EmailTokenSchema = new Schema({
+  token: { type: String, required: true },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    expires: "30m",
+  },
+});
+
+module.exports = mongoose.model("EmailToken", EmailTokenSchema);
