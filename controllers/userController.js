@@ -117,6 +117,21 @@ exports.login_user = [
 ];
 
 // search for an existing email in the database (used for "forgot password" button on the frontend)
+exports.forgot_password = [
+  body("username").trim().escape(),
+  // NOTE: experimental; email retrieval function might be subject to change
+  async (req, res, next) => {
+    const user = await User.findOne(
+      { username: req.body.username },
+      "email"
+    ).exec();
+    if (user) {
+      res.send(user.email);
+    } else {
+      res.send("No user found!");
+    }
+  },
+];
 
 // send a message to the user's email address with a link for a password reset (create email transport, use ethereal smtp service plus credentials, send email to a user account with a tokenized password reset link)
 

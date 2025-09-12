@@ -16,4 +16,7 @@ router.post("/register-user", userController.register_user);
 // user login route
 router.post("/login-user", userController.login_user);
 
+// email retrieval route (used for "forgot password" button)
+router.get("/forgot-password", userController.forgot_password);
+
 module.exports = router;
