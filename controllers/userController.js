@@ -1,11 +1,13 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 const { body, validationResult } = require("express-validator");
 
 require("dotenv").config();
 
 // import models for user-related database queries
 const User = require("../models/user.js");
+const EmailToken = require("../models/emailtoken.js");
 
 // search existing username and/or email address (user registration validation)
 async function searchExistingUser(field, input) {
@@ -134,6 +136,58 @@ exports.forgot_password = [
 ];
 
 // send a message to the user's email address with a link for a password reset (create email transport, use ethereal smtp service plus credentials, send email to a user account with a tokenized password reset link)
+exports.send_mail = async (req, res, next) => {
+  const email = req.query.email;
+  if (email) {
+    // create unique token with an expiration date used in the password reset link accessed via email
+    const mailId = crypto.randomBytes(32).toString("hex");
+    // save the token for 30 minutes (see schema definition)
+    await EmailToken.create({ token: mailId });
+    // smpt service: https://ethereal.email/, username: Cole Cummings
+    const transport = nodemailer.createTransport({
+      host: "smtp.ethereal.email",
+      port: 587,
+      auth: {
+        user: process.env.EMAILUSER,
+        pass: process.env.EMAILPW,
+      },
+    });
+
+    const mailOptions = {
+      // NOTE: preliminary email content; may be subject to change
+      from: process.env.EMAILUSER,
+      to: email,
+      subject: "Playlist Station - Change your password",
+      text: `
+    Hello, ${email}, 
+    you requested to change your password. 
+    Click <a href="${req.headers.origin}/${mailId}?email=${email}" target="_blank">here</a> to change it! 
+    This link will be valid for half an hour.
+    If you want to leave your password as it is, please ignore this email. 
+    Best regards, Nik
+    `,
+      html: `
+    <body>
+      <h1>Hello ${email},</h1>
+      <p>you requested to change your password. Click <a href="${req.headers.origin}/${mailId}?email=${email}" target="_blank">here</a> to change it!</p>
+      <p>This link will be valid for half an hour.</p>
+      <p>If you want to leave your password as it is, please ignore this email.</p>
+      <h2>Best regards, Nik</h2>
+    </body>
+    `,
+    };
+
+    transport.sendMail(mailOptions, (err, info) => {
+      if (err) {
+        throw err;
+      } else {
+        res.send("Email sent: " + info.response);
+      }
+    });
+  } else {
+    res.send("No email attached!");
+  }
+};
 
 // create a new password for a logged in user (sanitize and validate data, compare password and password repeat, hash new password, update user data)
 

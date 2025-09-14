@@ -19,4 +19,7 @@ router.post("/login-user", userController.login_user);
 // email retrieval route (used for "forgot password" button)
 router.get("/forgot-password", userController.forgot_password);
 
+// email to user route (triggered by "forgot password button")
+router.get("/send-mail", userController.send_mail);
+
 module.exports = router;
