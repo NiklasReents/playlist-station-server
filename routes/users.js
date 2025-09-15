@@ -22,4 +22,7 @@ router.get("/forgot-password", userController.forgot_password);
 // email to user route (triggered by "forgot password button")
 router.get("/send-mail", userController.send_mail);
 
+// password reset route
+router.post("/reset-password", userController.reset_password);
+
 module.exports = router;

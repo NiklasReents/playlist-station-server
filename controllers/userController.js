@@ -190,5 +190,54 @@ exports.send_mail = async (req, res, next) => {
 };
 
 // create a new password for a logged in user (sanitize and validate data, compare password and password repeat, hash new password, update user data)
+exports.reset_password = [
+  // sanitize and validate user input
+  body("password")
+    .trim()
+    .escape()
+    .isLength({ min: 8, max: 128 })
+    .withMessage("Password must contain between 8 and 128 characters!")
+    .isStrongPassword()
+    .withMessage(
+      "Password must contain at least 1 lower case letter, 1 upper case letter, 1 number and 1 symbol!"
+    ),
+  body("password-repeat")
+    .trim()
+    .escape()
+    .custom((value, { req }) => {
+      if (value === req.body.password) {
+        return true;
+      } else {
+        throw new Error("Passwords do not match!");
+      }
+    }),
+  // handle validation errors and password update (with password hashing)
+  async (req, res, next) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+      res.render("error", { valErrors: errors.array() });
+      return;
+    }
+
+    const loggedInUser = await User.findOne(
+      {
+        username: req.body.username,
+      },
+      "username"
+    ).exec();
+    // NOTE: send request with email instead of username?
+    if (loggedInUser) {
+      const { salt, hash } = hashPassword(req.body.password);
+      await User.updateOne(
+        { username: loggedInUser.username },
+        { password: hash, salt: salt }
+      ).exec();
+      res.send(`${loggedInUser.username}'s password updated!`);
+    } else {
+      res.send("No username provided!");
+    }
+  },
+];
 
 // delete a logged in user (include user's playlists as well)
