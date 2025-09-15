@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
+const mongoose = require("mongoose");
 const { body, validationResult } = require("express-validator");
 
 require("dotenv").config();
@@ -241,3 +242,17 @@ exports.reset_password = [
 ];
 
 // delete a logged in user (include user's playlists as well)
+exports.delete_user = async (req, res, next) => {
+  // NOTE: preliminary deletion function, may be subject to change
+  const userId = await User.findOne(
+    { username: req.body.username },
+    "_id"
+  ).exec();
+  if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+    res.send("No user found/invalid id!");
+  } else {
+    await User.findByIdAndDelete(userId).exec();
+    // TODO: delete associated playlists
+    res.send(`${req.body.username} was successfully deleted!`);
+  }
+};

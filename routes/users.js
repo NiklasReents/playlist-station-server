@@ -25,4 +25,7 @@ router.get("/send-mail", userController.send_mail);
 // password reset route
 router.post("/reset-password", userController.reset_password);
 
+// user deletion route
+router.delete("/delete-user", userController.delete_user);
+
 module.exports = router;
