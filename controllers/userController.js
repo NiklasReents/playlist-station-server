@@ -144,7 +144,7 @@ exports.send_mail = async (req, res, next) => {
     const mailId = crypto.randomBytes(32).toString("hex");
     // save the token for 30 minutes (see schema definition)
     await EmailToken.create({ token: mailId });
-    // smpt service: https://ethereal.email/, username: Cole Cummings
+    // smpt service: https://ethereal.email/, username: Oceane Lowe
     const transport = nodemailer.createTransport({
       host: "smtp.ethereal.email",
       port: 587,
@@ -155,7 +155,7 @@ exports.send_mail = async (req, res, next) => {
     });
 
     const mailOptions = {
-      // NOTE: preliminary email content; may be subject to change
+      // NOTE: preliminary email content; may be subject to change (the link address in particular)
       from: process.env.EMAILUSER,
       to: email,
       subject: "Playlist Station - Change your password",
@@ -254,5 +254,22 @@ exports.delete_user = async (req, res, next) => {
     await User.findByIdAndDelete(userId).exec();
     // TODO: delete associated playlists
     res.send(`${req.body.username} was successfully deleted!`);
+  }
+};
+
+// check if emailtoken exists, delete it and redirect to the front end (after clicking on the link in the email sent to the user in order to reset their password)
+exports.check_token = async (req, res, next) => {
+  const token = await EmailToken.findOne(
+    { token: req.params.id },
+    "token"
+  ).exec();
+  const email = await User.findOne({ email: req.query.email }, "email").exec();
+  if (token && email) {
+    // await EmailToken.findByIdAndDelete(token._id).exec();
+    // NOTE: preliminary response -> 'res.redirect(<ROUTE TO PASSWORD RESET PAGE ON THE FRONT END + QUERY PARAMS>)'
+    res.redirect("/");
+  } else {
+    // NOTE: preliminary response
+    res.send("No valid token found!");
   }
 };

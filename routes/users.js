@@ -28,4 +28,7 @@ router.post("/reset-password", userController.reset_password);
 // user deletion route
 router.delete("/delete-user", userController.delete_user);
 
+// email token authentification route
+router.get("/:id", userController.check_token);
+
 module.exports = router;
