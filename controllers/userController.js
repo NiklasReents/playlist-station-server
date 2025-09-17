@@ -162,7 +162,7 @@ exports.send_mail = async (req, res, next) => {
       text: `
     Hello, ${email}, 
     you requested to change your password. 
-    Click <a href="${req.headers.origin}/${mailId}?email=${email}" target="_blank">here</a> to change it! 
+    Click <a href="${req.protocol}://${req.host}/users/${mailId}?email=${email}" target="_blank">here</a> to change it! 
     This link will be valid for half an hour.
     If you want to leave your password as it is, please ignore this email. 
     Best regards, Nik
@@ -170,7 +170,7 @@ exports.send_mail = async (req, res, next) => {
       html: `
     <body>
       <h1>Hello ${email},</h1>
-      <p>you requested to change your password. Click <a href="${req.headers.origin}/${mailId}?email=${email}" target="_blank">here</a> to change it!</p>
+      <p>you requested to change your password. Click <a href="${req.protocol}://${req.host}/users/${mailId}?email=${email}" target="_blank">here</a> to change it!</p>
       <p>This link will be valid for half an hour.</p>
       <p>If you want to leave your password as it is, please ignore this email.</p>
       <h2>Best regards, Nik</h2>

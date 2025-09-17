@@ -18,4 +18,6 @@ const EmailTokenSchema = new Schema({
   },
 });
 
+// TODO: fix bug(s) leading to premature token expiration (instead of intended automatic expiration after 30 minutes)
+
 module.exports = mongoose.model("EmailToken", EmailTokenSchema);
