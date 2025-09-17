@@ -7,7 +7,14 @@ const EmailTokenSchema = new Schema({
   createdAt: {
     type: Date,
     default: Date.now,
-    expires: "30m",
+  },
+  expireAt: {
+    type: Date,
+    validate: [
+      (v) => v - new Date() <= 1800000,
+      "Token expires after 30 minutes.",
+    ],
+    default: () => new Date(Date.now() + 1800000),
   },
 });
 
