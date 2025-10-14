@@ -127,13 +127,13 @@ exports.forgot_password = [
   // NOTE: experimental; email retrieval function might be subject to change
   async (req, res, next) => {
     const user = await User.findOne(
-      { username: req.body.username },
+      { username: req.query.user },
       "email"
     ).exec();
     if (user) {
-      res.send(user.email);
+      res.json({ email: user.email });
     } else {
-      res.send("No user found!");
+      res.json({ message: "No user found!" });
     }
   },
 ];
@@ -184,11 +184,11 @@ exports.send_mail = async (req, res, next) => {
       if (err) {
         throw err;
       } else {
-        res.send("Email sent: " + info.response);
+        res.json({ message: "Email sent: " + info.response });
       }
     });
   } else {
-    res.send("No email attached!");
+    res.json({ message: "No email attached!" });
   }
 };
 
