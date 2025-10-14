@@ -50,7 +50,7 @@ exports.register_user = [
     .isLength({ min: 1, max: 100 })
     .withMessage("Email must contain between 1 and 100 characters!")
     .isEmail()
-    .withMessage("Email must be well-formed!")
+    .withMessage("Email must be well-formed (e.g. example@company.com)!")
     .custom((email) => searchExistingUser("email", email)),
   body("password")
     .trim()
@@ -66,7 +66,7 @@ exports.register_user = [
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
-      res.render("error", { valErrors: errors.array() });
+      res.status(400).json({ valErrors: errors.array() });
     } else {
       const { salt, hash } = hashPassword(req.body.password);
 
@@ -78,7 +78,9 @@ exports.register_user = [
       });
 
       await user.save();
-      res.send(`Successful registration of ${user.username}!`);
+      res.status(200).json({
+        message: `Successful registration of ${user.username}!`,
+      });
     }
   },
 ];
@@ -108,13 +110,13 @@ exports.login_user = [
           { algorithm: "HS256", expiresIn: "1 day" }
         );
         const loginMessage = `${user.username} successfully logged in!`;
-        res.json({ token, loginMessage });
+        res.status(200).json({ loginData: [token, loginMessage] });
       } else {
-        res.send("Invalid user data!");
+        res.status(400).json({ message: "Invalid user data!" });
       }
     } else {
       // NOTE: implement login lockout after a set number of attempts (id-related login exhaustion with blacklist?)?
-      res.send("No user found!");
+      res.status(404).json({ message: "No user found!" });
     }
   },
 ];
@@ -193,6 +195,7 @@ exports.send_mail = async (req, res, next) => {
 // create a new password for a logged in user (sanitize and validate data, compare password and password repeat, hash new password, update user data)
 exports.reset_password = [
   // sanitize and validate user input
+  // NOTE: check whether newly entered password already exists in the database for that user
   body("password")
     .trim()
     .escape()
