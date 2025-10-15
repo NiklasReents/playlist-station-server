@@ -131,9 +131,9 @@ exports.forgot_password = [
       "email"
     ).exec();
     if (user) {
-      res.json({ email: user.email });
+      res.status(200).json({ email: user.email });
     } else {
-      res.json({ message: "No user found!" });
+      res.status(404).json({ message: "No user found!" });
     }
   },
 ];
@@ -184,11 +184,11 @@ exports.send_mail = async (req, res, next) => {
       if (err) {
         throw err;
       } else {
-        res.json({ message: "Email sent: " + info.response });
+        res.status(250).json({ message: "Email sent: " + info.response });
       }
     });
   } else {
-    res.json({ message: "No email attached!" });
+    res.status(404).json({ message: "No email attached!" });
   }
 };
 
