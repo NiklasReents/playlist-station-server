@@ -30,7 +30,7 @@ mongoose.set("strictQuery", false);
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "pug");
 
-app.use(cors({ origin: "http://localhost:5173" }));
+app.use(cors({ origin: process.env.CLIENT_URL }));
 app.use(logger("dev"));
 app.use(upload.none());
 app.use(express.json());

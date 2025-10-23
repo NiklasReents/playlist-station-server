@@ -220,26 +220,27 @@ exports.reset_password = [
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
-      res.render("error", { valErrors: errors.array() });
+      res.status(400).json({ valErrors: errors.array() });
       return;
     }
 
     const loggedInUser = await User.findOne(
       {
-        username: req.body.username,
+        email: req.body.email,
       },
       "username"
     ).exec();
-    // NOTE: send request with email instead of username?
     if (loggedInUser) {
       const { salt, hash } = hashPassword(req.body.password);
       await User.updateOne(
         { username: loggedInUser.username },
         { password: hash, salt: salt }
       ).exec();
-      res.send(`${loggedInUser.username}'s password updated!`);
+      res
+        .status(200)
+        .json({ message: `${loggedInUser.username}'s password updated!` });
     } else {
-      res.send("No username provided!");
+      res.status(400).json({ message: "No email provided!" });
     }
   },
 ];
@@ -260,7 +261,7 @@ exports.delete_user = async (req, res, next) => {
   }
 };
 
-// check if emailtoken exists, delete it and redirect to the front end (after clicking on the link in the email sent to the user in order to reset their password)
+// check if emailtoken exists, delete it and render a password reset page (after clicking on the link in the email sent to the user in order to reset their password)
 exports.check_token = async (req, res, next) => {
   const token = await EmailToken.findOne(
     { token: req.params.id },
@@ -268,11 +269,13 @@ exports.check_token = async (req, res, next) => {
   ).exec();
   const email = await User.findOne({ email: req.query.email }, "email").exec();
   if (token && email) {
-    // await EmailToken.findByIdAndDelete(token._id).exec();
-    // NOTE: preliminary response -> 'res.redirect(<ROUTE TO PASSWORD RESET PAGE ON THE FRONT END + QUERY PARAMS>)'
-    res.redirect("/");
+    // delete the emailtoken
+    await EmailToken.findByIdAndDelete(token._id).exec();
+    res.status(200).render("password-reset", {
+      email: email.email,
+      clientURL: process.env.CLIENT_URL,
+    });
   } else {
-    // NOTE: preliminary response
-    res.send("No valid token found!");
+    res.status(404).json({ message: "No valid token and/or email found!" });
   }
 };
