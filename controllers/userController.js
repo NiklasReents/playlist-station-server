@@ -253,11 +253,13 @@ exports.delete_user = async (req, res, next) => {
     "_id"
   ).exec();
   if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-    res.send("No user found/invalid id!");
+    res.status(404).json({ message: "No user found/invalid id!" });
   } else {
     await User.findByIdAndDelete(userId).exec();
     // TODO: delete associated playlists
-    res.send(`${req.body.username} was successfully deleted!`);
+    res
+      .status(200)
+      .json({ message: `${req.body.username} was successfully deleted!` });
   }
 };
 
