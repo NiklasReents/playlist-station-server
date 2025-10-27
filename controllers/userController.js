@@ -2,8 +2,10 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const mongoose = require("mongoose");
+const multer = require("multer");
 const { body, validationResult } = require("express-validator");
 
+const upload = multer();
 require("dotenv").config();
 
 // import models for user-related database queries
@@ -35,6 +37,8 @@ function verifyPassword(password, salt, hash) {
 
 // register a new user (sanitize and validate data, hash password, create new user)
 exports.register_user = [
+  // parse form data upload
+  upload.none(),
   // sanitize and validate registration field values
   // NOTE: create reusable function for validation chains?
   body("username")
@@ -87,6 +91,8 @@ exports.register_user = [
 
 // log in an existing user (sanitize data, verify password, create auth token)
 exports.login_user = [
+  // parse form data upload
+  upload.none(),
   // sanitize user input
   body("username").trim().escape(),
   body("password").trim().escape(),
@@ -194,6 +200,8 @@ exports.send_mail = async (req, res, next) => {
 
 // create a new password for a logged in user (sanitize and validate data, compare password and password repeat, hash new password, update user data)
 exports.reset_password = [
+  // parse form data upload
+  upload.none(),
   // sanitize and validate user input
   // NOTE: check whether newly entered password already exists in the database for that user
   body("password")
@@ -246,22 +254,27 @@ exports.reset_password = [
 ];
 
 // delete a logged in user (include user's playlists as well)
-exports.delete_user = async (req, res, next) => {
-  // NOTE: preliminary deletion function, may be subject to change
-  const userId = await User.findOne(
-    { username: req.body.username },
-    "_id"
-  ).exec();
-  if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-    res.status(404).json({ message: "No user found/invalid id!" });
-  } else {
-    await User.findByIdAndDelete(userId).exec();
-    // TODO: delete associated playlists
-    res
-      .status(200)
-      .json({ message: `${req.body.username} was successfully deleted!` });
-  }
-};
+exports.delete_user = [
+  // parse form data upload
+  upload.none(),
+  async (req, res, next) => {
+    // NOTE: preliminary deletion function, may be subject to change
+
+    const userId = await User.findOne(
+      { username: req.body.username },
+      "_id"
+    ).exec();
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      res.status(404).json({ message: "No user found/invalid id!" });
+    } else {
+      await User.findByIdAndDelete(userId).exec();
+      // TODO: delete associated playlists
+      res
+        .status(200)
+        .json({ message: `${req.body.username} was successfully deleted!` });
+    }
+  },
+];
 
 // check if emailtoken exists, delete it and render a password reset page (after clicking on the link in the email sent to the user in order to reset their password)
 exports.check_token = async (req, res, next) => {

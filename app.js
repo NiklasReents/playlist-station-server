@@ -5,8 +5,6 @@ const cookieParser = require("cookie-parser");
 const logger = require("morgan");
 const cors = require("cors");
 const mongoose = require("mongoose");
-const multer = require("multer");
-const upload = multer();
 
 require("dotenv").config();
 
@@ -32,7 +30,6 @@ app.set("view engine", "pug");
 
 app.use(cors({ origin: process.env.CLIENT_URL }));
 app.use(logger("dev"));
-app.use(upload.none());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
