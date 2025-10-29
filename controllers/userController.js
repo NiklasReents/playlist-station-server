@@ -110,11 +110,10 @@ exports.login_user = [
       );
       // create jwt token and login message and send them to the frontend
       if (validUserData) {
-        const token = jwt.sign(
-          { username: user.username, email: user.email },
-          process.env.AUTHKEY,
-          { algorithm: "HS256", expiresIn: "1 day" }
-        );
+        const token = jwt.sign({ _id: user._id }, process.env.AUTHKEY, {
+          algorithm: "HS256",
+          expiresIn: "1 day",
+        });
         const loginMessage = `${user.username} successfully logged in!`;
         res.status(200).json({ loginData: [token, loginMessage] });
       } else {
