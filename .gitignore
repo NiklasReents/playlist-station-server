@@ -59,3 +59,7 @@ typings/
 
 # next.js build output
 .next
+
+# audio and images directories (preliminary)
+audio
+images

@@ -11,6 +11,7 @@ require("dotenv").config();
 // import models for user-related database queries
 const User = require("../models/user.js");
 const EmailToken = require("../models/emailtoken.js");
+const Playlist = require("../models/playlist.js");
 
 // search existing username and/or email address (user registration validation)
 async function searchExistingUser(field, input) {
@@ -258,7 +259,6 @@ exports.delete_user = [
   upload.none(),
   async (req, res, next) => {
     // NOTE: preliminary deletion function, may be subject to change
-
     const userId = await User.findOne(
       { username: req.body.username },
       "_id"
@@ -266,8 +266,9 @@ exports.delete_user = [
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
       res.status(404).json({ message: "No user found/invalid id!" });
     } else {
-      await User.findByIdAndDelete(userId).exec();
-      // TODO: delete associated playlists
+      // delete the given user and all their playlists
+      await Playlist.deleteMany({ user: userId._id }).exec();
+      await User.findOneAndDelete(userId).exec();
       res
         .status(200)
         .json({ message: `${req.body.username} was successfully deleted!` });
