@@ -14,7 +14,10 @@ router.get("/", async (req, res, next) => {
   res.json(playlists);
 });
 
-// create a new playlist or add a new song to an existing playlist
+// playlist name retrieval route
+router.get("/get-playlists", playlistController.get_playlistnames);
+
+// playlist/song creation route
 router.post("/create-playlist", playlistController.upload_playlistdata);
 
 module.exports = router;
