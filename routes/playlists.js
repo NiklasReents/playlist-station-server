@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 
-const User = require("../models/user.js");
 const Playlist = require("../models/playlist.js");
 const playlistController = require("../controllers/playlistController.js");
 
@@ -15,9 +14,9 @@ router.get("/", async (req, res, next) => {
 });
 
 // playlist name retrieval route
-router.get("/get-playlists", playlistController.get_playlistnames);
+router.get("/get-playlistnames", playlistController.get_playlistNames);
 
 // playlist/song creation route
-router.post("/create-playlist", playlistController.upload_playlistdata);
+router.post("/create-playlist", playlistController.create_playlist);
 
 module.exports = router;

@@ -1,22 +1,22 @@
-const createError = require("http-errors");
 const express = require("express");
-const path = require("path");
-const cookieParser = require("cookie-parser");
-const logger = require("morgan");
-const cors = require("cors");
 const mongoose = require("mongoose");
-
+const path = require("path");
+const cors = require("cors");
+const logger = require("morgan");
+const cookieParser = require("cookie-parser");
+const createError = require("http-errors");
+// load .env variables
 require("dotenv").config();
-
+// import routers
 const indexRouter = require("./routes/index");
 const usersRouter = require("./routes/users");
 const playlistRouter = require("./routes/playlists");
-
+// create express app instance
 const app = express();
-
 // set up database connection via mongoose
 mongoose.set("strictQuery", false);
 
+// connect to mongodb database
 (async function () {
   try {
     await mongoose.connect(process.env.DBCONNECTION);
@@ -28,14 +28,14 @@ mongoose.set("strictQuery", false);
 // view engine setup
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "pug");
-
+// configure global middleware functions
 app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 app.use(logger("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
-
+// configure routers
 app.use("/", indexRouter);
 app.use("/users", usersRouter);
 app.use("/playlists", playlistRouter);
@@ -50,7 +50,6 @@ app.use(function (err, req, res, next) {
   // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get("env") === "development" ? err : {};
-
   // render the error page
   res.status(err.status || 500);
   res.render("error");

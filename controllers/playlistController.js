@@ -1,20 +1,12 @@
 const multer = require("multer");
-const jwt = require("jsonwebtoken");
 const { body, validationResult } = require("express-validator");
+// import utility functions
+const utils = require("../utils/utils.js");
+// import models for playlist-related database queries
+const Song = require("../models/song.js");
+const Playlist = require("../models/playlist.js");
 
-require("dotenv").config();
-
-// verify user via cookie token
-function verifyUser(req, res, next) {
-  if (req.cookies.userToken) {
-    userId = jwt.verify(req.cookies.userToken, process.env.AUTHKEY);
-    next();
-  } else {
-    res.status(401).json({ message: "No valid token provided!" });
-  }
-}
-
-// configure file storage
+// configure multer file storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(
@@ -26,37 +18,40 @@ const storage = multer.diskStorage({
     cb(null, file.originalname);
   },
 });
-
+// create a multer instance for file/field parsing
 const upload = multer({ storage: storage });
-let userId;
+// create user id object to be passed as a reference to "verifyUser" (token verification function)
+const userId = { _id: "" };
 
-// import models for playlist-related database queries
-const Song = require("../models/song.js");
-const Playlist = require("../models/playlist.js");
-
-// get all playlist names for a logged in user (as options rendered into a "select" container on the frontend)
-exports.get_playlistnames = [
-  verifyUser,
+// get all playlist names for a verified user (as options rendered into a "select" container on the frontend)
+exports.get_playlistNames = [
+  (req, res, next) => utils.verifyUser(req, res, next, userId),
   async (req, res, next) => {
-    const playlistNames = await Playlist.find(
-      { user: userId._id },
-      "playlist"
-    ).exec();
-    if (playlistNames.length) {
-      res.status(200).json({ playlistNames: playlistNames });
-    } else {
-      res.status(404).json({ message: "No playlists found." });
+    try {
+      const playlistNames = await Playlist.find(
+        { user: userId._id },
+        "playlist"
+      ).exec();
+
+      if (playlistNames.length) {
+        res.status(200).json({
+          success: "Playlist(s) loaded!",
+          playlistNames: playlistNames,
+        });
+      } else {
+        res.status(404).json({ error: "No playlists found!" });
+      }
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
   },
 ];
 
 // get the full selected playlist for a logged in user (get a default list if no user is logged in)
 
-// create a new playlist OR add a new song to an existing playlist (receive data via form upload from the frontend)
-
-exports.upload_playlistdata = [
-  // verify user
-  verifyUser,
+// create a new playlist OR add a new song to an existing playlist (receive data via form upload by a verified user from the frontend)
+exports.create_playlist = [
+  (req, res, next) => utils.verifyUser(req, res, next, userId),
   // process uploaded files
   upload.fields([
     { name: "image", maxCount: 1 },
@@ -83,47 +78,50 @@ exports.upload_playlistdata = [
     .escape()
     .isLength({ min: 1, max: 100 })
     .withMessage("'Genre' field must contain between 1 and 100 characters!"),
-
+  // handle validation errors and song/playlist data creation
   async (req, res, next) => {
-    // handle validation errors and song/playlist data creation
-    const errors = validationResult(req);
+    try {
+      const errors = validationResult(req);
 
-    if (!errors.isEmpty()) {
-      res.status(400).json({ valErrors: errors.array() });
-    } else {
-      const uploadedimagePath = `${req.files.image[0].destination}/${req.files.image[0].filename}`;
-      const uploadedAudioPath = `${req.files.audio[0].destination}/${req.files.audio[0].filename}`;
-      const song = new Song({
-        song: req.body.song,
-        artist: req.body.artist,
-        genre: req.body.genre,
-        image: uploadedimagePath,
-        audio: uploadedAudioPath,
-      });
-      // check if playlist already exists for the given user
-      const existingPlaylist = await Playlist.findOne({
-        playlist: req.body.playlist,
-        user: userId._id,
-      }).exec();
-      // create new playlist
-      if (!existingPlaylist) {
-        const newPlaylist = new Playlist({
+      if (!errors.isEmpty()) {
+        res.status(400).json({ valErrors: errors.array() });
+      } else {
+        const uploadedimagePath = `${req.files.image[0].destination}/${req.files.image[0].filename}`;
+        const uploadedAudioPath = `${req.files.audio[0].destination}/${req.files.audio[0].filename}`;
+        const song = new Song({
+          song: req.body.song,
+          artist: req.body.artist,
+          genre: req.body.genre,
+          image: uploadedimagePath,
+          audio: uploadedAudioPath,
+        });
+        // check if playlist already exists for the given user
+        const existingPlaylist = await Playlist.findOne({
           playlist: req.body.playlist,
           user: userId._id,
-          songs: [song._id],
-        });
+        }).exec();
+        // create new playlist
+        if (!existingPlaylist) {
+          const newPlaylist = new Playlist({
+            playlist: req.body.playlist,
+            user: userId._id,
+            songs: [song._id],
+          });
 
-        await song.save();
-        await newPlaylist.save();
-        res.status(200).json({ message: "New playlist uploaded!" });
+          await song.save();
+          await newPlaylist.save();
+          res.status(200).json({ success: "New playlist uploaded!" });
+        }
+        // update existing playlist
+        else {
+          existingPlaylist.songs.push(song._id);
+          await song.save();
+          await existingPlaylist.save();
+          res.status(200).json({ success: "Song uploaded!" });
+        }
       }
-      // update existing playlist
-      else {
-        existingPlaylist.songs.push(song._id);
-        await song.save();
-        await existingPlaylist.save();
-        res.status(200).json({ message: "Song uploaded!" });
-      }
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
   },
 ];

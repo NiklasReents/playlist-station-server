@@ -1,53 +1,29 @@
-const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
-const nodemailer = require("nodemailer");
-const mongoose = require("mongoose");
 const multer = require("multer");
 const { body, validationResult } = require("express-validator");
-
-const upload = multer();
-require("dotenv").config();
-
+const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
+const mongoose = require("mongoose");
+// import utility functions
+const utils = require("../utils/utils.js");
 // import models for user-related database queries
 const User = require("../models/user.js");
 const EmailToken = require("../models/emailtoken.js");
 const Playlist = require("../models/playlist.js");
-
-// search existing username and/or email address (user registration validation)
-async function searchExistingUser(field, input) {
-  const existingUser = await User.findOne({ [field]: input }, field).exec();
-  if (existingUser) {
-    field = field[0].toUpperCase() + field.slice(1);
-    throw new Error(field + " already in use!");
-  }
-}
-
-// hash password upon user registration
-function hashPassword(password) {
-  const salt = crypto.randomBytes(16).toString("hex");
-  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
-  // NOTE: use crypto.pbkdf2Sync() as alternative? Use asynchronous function variants instead?
-  return { salt, hash };
-}
-
-// verify password upon user login
-function verifyPassword(password, salt, hash) {
-  const hashedPassword = crypto.scryptSync(password, salt, 64).toString("hex");
-  return hashedPassword === hash;
-}
+// create a multer instance for file/field parsing
+const upload = multer();
 
 // register a new user (sanitize and validate data, hash password, create new user)
 exports.register_user = [
-  // parse form data upload
+  // parse form data upload (text only)
   upload.none(),
   // sanitize and validate registration field values
-  // NOTE: create reusable function for validation chains?
   body("username")
     .trim()
     .escape()
     .isLength({ min: 1, max: 100 })
     .withMessage("Username must contain between 1 and 100 characters!")
-    .custom((username) => searchExistingUser("username", username)),
+    .custom((username) => utils.searchExistingUser("username", username)),
   body("email")
     .trim()
     .escape()
@@ -56,7 +32,7 @@ exports.register_user = [
     .withMessage("Email must contain between 1 and 100 characters!")
     .isEmail()
     .withMessage("Email must be well-formed (e.g. example@company.com)!")
-    .custom((email) => searchExistingUser("email", email)),
+    .custom((email) => utils.searchExistingUser("email", email)),
   body("password")
     .trim()
     .escape()
@@ -68,61 +44,69 @@ exports.register_user = [
     ),
   // handle validation errors and user registration (with password hashing)
   async (req, res, next) => {
-    const errors = validationResult(req);
+    try {
+      const errors = validationResult(req);
 
-    if (!errors.isEmpty()) {
-      res.status(400).json({ valErrors: errors.array() });
-    } else {
-      const { salt, hash } = hashPassword(req.body.password);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ valErrors: errors.array() });
+      } else {
+        const { salt, hash } = utils.hashPassword(req.body.password);
 
-      const user = new User({
-        username: req.body.username,
-        email: req.body.email,
-        password: hash,
-        salt: salt,
-      });
+        const user = new User({
+          username: req.body.username,
+          email: req.body.email,
+          password: hash,
+          salt: salt,
+        });
 
-      await user.save();
-      res.status(200).json({
-        message: `Successful registration of ${user.username}!`,
-      });
+        await user.save();
+        res.status(200).json({
+          registrationSuccess: `Successful registration of ${user.username}!`,
+        });
+      }
+    } catch (err) {
+      res.status(500).json({ error: err.message }); // NOTE: adjust error message?
     }
   },
 ];
 
 // log in an existing user (sanitize data, verify password, create auth token)
 exports.login_user = [
-  // parse form data upload
+  // parse form data upload (text only)
   upload.none(),
   // sanitize user input
   body("username").trim().escape(),
   body("password").trim().escape(),
   // search user and use password verification function
   async (req, res, next) => {
-    const user = await User.findOne({
-      username: req.body.username,
-    }).exec();
+    try {
+      const user = await User.findOne({
+        username: req.body.username,
+      }).exec();
 
-    if (user) {
-      const validUserData = verifyPassword(
-        req.body.password,
-        user.salt,
-        user.password
-      );
-      // create jwt token and login message and send them to the frontend
-      if (validUserData) {
-        const token = jwt.sign({ _id: user._id }, process.env.AUTHKEY, {
-          algorithm: "HS256",
-          expiresIn: "1 day",
-        });
-        const loginMessage = `${user.username} successfully logged in!`;
-        res.status(200).json({ loginData: [token, loginMessage] });
+      if (user) {
+        const validUserData = utils.verifyPassword(
+          req.body.password,
+          user.salt,
+          user.password
+        );
+        // create jwt token and login message and send them to the frontend
+        if (validUserData) {
+          const token = jwt.sign({ _id: user._id }, process.env.AUTHKEY, {
+            algorithm: "HS256",
+            expiresIn: "1 day",
+          });
+          const loginMessage = `${user.username} successfully logged in!`;
+          res.status(200).json({ loginData: [token, loginMessage] });
+        } else {
+          res.status(400).json({ error: "Invalid user data!" });
+        }
       } else {
-        res.status(400).json({ message: "Invalid user data!" });
+        // NOTE: implement login lockout after a set number of attempts (id-related login exhaustion with blacklist?)?
+        res.status(404).json({ error: "No user found!" });
       }
-    } else {
-      // NOTE: implement login lockout after a set number of attempts (id-related login exhaustion with blacklist?)?
-      res.status(404).json({ message: "No user found!" });
+    } catch (err) {
+      res.status(500).json({ error: err.message }); // NOTE: adjust error message?
     }
   },
 ];
@@ -132,42 +116,48 @@ exports.forgot_password = [
   body("username").trim().escape(),
   // NOTE: experimental; email retrieval function might be subject to change
   async (req, res, next) => {
-    const user = await User.findOne(
-      { username: req.query.user },
-      "email"
-    ).exec();
-    if (user) {
-      res.status(200).json({ email: user.email });
-    } else {
-      res.status(404).json({ message: "No user found!" });
+    try {
+      const user = await User.findOne(
+        { username: req.query.user },
+        "email"
+      ).exec();
+
+      if (user) {
+        res.status(200).json({ email: user.email });
+      } else {
+        res.status(404).json({ error: "No user found!" });
+      }
+    } catch (err) {
+      res.status(500).json({ error: "Server error: email query failed!" });
     }
   },
 ];
 
 // send a message to the user's email address with a link for a password reset (create email transport, use ethereal smtp service plus credentials, send email to a user account with a tokenized password reset link)
 exports.send_mail = async (req, res, next) => {
-  const email = req.query.email;
-  if (email) {
-    // create unique token with an expiration date used in the password reset link accessed via email
-    const mailId = crypto.randomBytes(32).toString("hex");
-    // save the token for 30 minutes (see schema definition)
-    await EmailToken.create({ token: mailId });
-    // smpt service: https://ethereal.email/, username: Oceane Lowe
-    const transport = nodemailer.createTransport({
-      host: "smtp.ethereal.email",
-      port: 587,
-      auth: {
-        user: process.env.EMAILUSER,
-        pass: process.env.EMAILPW,
-      },
-    });
+  try {
+    const email = req.query.email;
+    if (email) {
+      // create unique token with an expiration date used in the password reset link accessed via email
+      const mailId = crypto.randomBytes(32).toString("hex");
+      // save the token for 30 minutes (see schema definition)
+      await EmailToken.create({ token: mailId });
+      // smpt service: https://ethereal.email/, username: Oceane Lowe
+      const transport = nodemailer.createTransport({
+        host: "smtp.ethereal.email",
+        port: 587,
+        auth: {
+          user: process.env.EMAILUSER,
+          pass: process.env.EMAILPW,
+        },
+      });
 
-    const mailOptions = {
-      // NOTE: preliminary email content; may be subject to change (the link address in particular)
-      from: process.env.EMAILUSER,
-      to: email,
-      subject: "Playlist Station - Change your password",
-      text: `
+      const mailOptions = {
+        // NOTE: preliminary email content; may be subject to change (the link address in particular)
+        from: process.env.EMAILUSER,
+        to: email,
+        subject: "Playlist Station - Change your password",
+        text: `
     Hello, ${email}, 
     you requested to change your password. 
     Click <a href="${req.protocol}://${req.host}/users/${mailId}?email=${email}" target="_blank">here</a> to change it! 
@@ -175,7 +165,7 @@ exports.send_mail = async (req, res, next) => {
     If you want to leave your password as it is, please ignore this email. 
     Best regards, Nik
     `,
-      html: `
+        html: `
     <body>
       <h1>Hello ${email},</h1>
       <p>you requested to change your password. Click <a href="${req.protocol}://${req.host}/users/${mailId}?email=${email}" target="_blank">here</a> to change it!</p>
@@ -184,17 +174,20 @@ exports.send_mail = async (req, res, next) => {
       <h2>Best regards, Nik</h2>
     </body>
     `,
-    };
+      };
 
-    transport.sendMail(mailOptions, (err, info) => {
-      if (err) {
-        throw err;
-      } else {
-        res.status(250).json({ message: "Email sent: " + info.response });
-      }
-    });
-  } else {
-    res.status(404).json({ message: "No email attached!" });
+      transport.sendMail(mailOptions, (err, info) => {
+        if (err) {
+          throw err;
+        } else {
+          res.status(250).json({ success: "Email sent: " + info.response });
+        }
+      });
+    } else {
+      res.status(404).json({ error: "No email attached!" });
+    }
+  } catch (err) {
+    res.status(500).json({ error: "Server error: email transmission failed!" });
   }
 };
 
@@ -203,7 +196,7 @@ exports.reset_password = [
   // parse form data upload
   upload.none(),
   // sanitize and validate user input
-  // NOTE: check whether newly entered password already exists in the database for that user
+  // NOTE: check whether newly entered password already exists in the database for that user?
   body("password")
     .trim()
     .escape()
@@ -223,32 +216,38 @@ exports.reset_password = [
         throw new Error("Passwords do not match!");
       }
     }),
+
   // handle validation errors and password update (with password hashing)
   async (req, res, next) => {
-    const errors = validationResult(req);
+    try {
+      const errors = validationResult(req);
 
-    if (!errors.isEmpty()) {
-      res.status(400).json({ valErrors: errors.array() });
-      return;
-    }
+      if (!errors.isEmpty()) {
+        res.status(400).json({ valErrors: errors.array() });
+        return;
+      }
 
-    const loggedInUser = await User.findOne(
-      {
-        email: req.body.email,
-      },
-      "username"
-    ).exec();
-    if (loggedInUser) {
-      const { salt, hash } = hashPassword(req.body.password);
-      await User.updateOne(
-        { username: loggedInUser.username },
-        { password: hash, salt: salt }
-      ).exec();
-      res
-        .status(200)
-        .json({ message: `${loggedInUser.username}'s password updated!` });
-    } else {
-      res.status(400).json({ message: "No email provided!" });
+      const loggedInUser = await User.findOne(
+        {
+          email: req.body.email,
+        },
+        "username"
+      ).exec(); // NOTE: query with id instead (via token)?
+
+      if (loggedInUser) {
+        const { salt, hash } = utils.hashPassword(req.body.password);
+        await User.updateOne(
+          { username: loggedInUser.username },
+          { password: hash, salt: salt }
+        ).exec();
+        res
+          .status(200)
+          .json({ success: `${loggedInUser.username}'s password updated!` });
+      } else {
+        res.status(400).json({ error: "No email provided!" });
+      }
+    } catch (err) {
+      res.status(500).json({ error: err.message }); // NOTE: adjust error message?
     }
   },
 ];
@@ -258,39 +257,55 @@ exports.delete_user = [
   // parse form data upload
   upload.none(),
   async (req, res, next) => {
-    // NOTE: preliminary deletion function, may be subject to change
-    const userId = await User.findOne(
-      { username: req.body.username },
-      "_id"
-    ).exec();
-    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-      res.status(404).json({ message: "No user found/invalid id!" });
-    } else {
-      // delete the given user and all their playlists
-      await Playlist.deleteMany({ user: userId._id }).exec();
-      await User.findOneAndDelete(userId).exec();
-      res
-        .status(200)
-        .json({ message: `${req.body.username} was successfully deleted!` });
+    try {
+      const userId = await User.findOne(
+        { username: req.body.username },
+        "_id"
+      ).exec(); // NOTE: query with id instead (via token)?
+
+      if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+        res.status(404).json({ error: "No user found/invalid id!" });
+      } else {
+        // delete the given user and all their playlists
+        await Playlist.deleteMany({ user: userId._id }).exec();
+        await User.findOneAndDelete(userId).exec();
+        res
+          .status(200)
+          .json({ success: `${req.body.username} was successfully deleted!` });
+      }
+    } catch (err) {
+      res.status(500).json({ error: "Server error: user deletion failed!" });
     }
   },
 ];
 
 // check if emailtoken exists, delete it and render a password reset page (after clicking on the link in the email sent to the user in order to reset their password)
 exports.check_token = async (req, res, next) => {
-  const token = await EmailToken.findOne(
-    { token: req.params.id },
-    "token"
-  ).exec();
-  const email = await User.findOne({ email: req.query.email }, "email").exec();
-  if (token && email) {
-    // delete the emailtoken
-    await EmailToken.findByIdAndDelete(token._id).exec();
-    res.status(200).render("password-reset", {
-      email: email.email,
-      clientURL: process.env.CLIENT_URL,
-    });
-  } else {
-    res.status(404).json({ message: "No valid token and/or email found!" });
+  try {
+    const token = await EmailToken.findOne(
+      { token: req.params.id },
+      "token"
+    ).exec();
+
+    const email = await User.findOne(
+      { email: req.query.email },
+      "email"
+    ).exec();
+    // delete the emailtoken and render the password reset page
+    if (token && email) {
+      await EmailToken.findByIdAndDelete(token._id).exec();
+
+      res.status(200).render("password-reset", {
+        email: email.email,
+        serverURL: process.env.SERVER_URL,
+        clientURL: process.env.CLIENT_URL,
+      });
+    } else {
+      res.status(404).json({ error: "No valid token and/or email found!" });
+    }
+  } catch (err) {
+    res
+      .status(500)
+      .json({ error: "Server error: email token verification failed!" });
   }
 };
