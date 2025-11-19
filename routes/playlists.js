@@ -16,6 +16,9 @@ router.get("/", async (req, res, next) => {
 // playlist name retrieval route
 router.get("/get-playlistnames", playlistController.get_playlistNames);
 
+// get a playlist
+router.post("/get-playlist", playlistController.get_playlist);
+
 // playlist/song creation route
 router.post("/create-playlist", playlistController.create_playlist);
 

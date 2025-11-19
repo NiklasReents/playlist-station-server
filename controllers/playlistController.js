@@ -11,7 +11,7 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(
       null,
-      file.mimetype.includes("image/") ? "./public/images" : "./public/audio"
+      file.mimetype.includes("image/") ? "public/images" : "public/audio"
     );
   },
   filename: (req, file, cb) => {
@@ -39,7 +39,9 @@ exports.get_playlistNames = [
           playlistNames: playlistNames,
         });
       } else {
-        res.status(404).json({ error: "No playlists found!" });
+        res
+          .status(404)
+          .json({ error: "No playlists found. Go and create a few!" });
       }
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -48,6 +50,27 @@ exports.get_playlistNames = [
 ];
 
 // get the full selected playlist for a logged in user (get a default list if no user is logged in)
+exports.get_playlist = [
+  (req, res, next) => utils.verifyUser(req, res, next, userId),
+  upload.none(),
+  async (req, res, next) => {
+    try {
+      const playlist = await Playlist.findOne({
+        playlist: req.body.playlist,
+        user: userId._id,
+      })
+        .populate("songs")
+        .exec();
+      if (playlist) {
+        res.status(200).json({ playlist: playlist.songs });
+      } else {
+        res.status(404).json({ error: "No playlist found!" });
+      }
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+];
 
 // create a new playlist OR add a new song to an existing playlist (receive data via form upload by a verified user from the frontend)
 exports.create_playlist = [
