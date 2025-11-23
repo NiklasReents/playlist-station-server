@@ -57,3 +57,28 @@ exports.verifyUser = function (req, res, next, userId) {
     res.status(500).json({ error: "Server error: token verification failed!" });
   }
 };
+
+// verify file fields
+exports.checkFiles = function (req, type) {
+  let valMessage;
+  try {
+    if (Object.hasOwn(req.files, type)) {
+      const file = req.files[type][0];
+      if (!file.mimetype.includes(type)) {
+        valMessage = `File type is not '${type}'!`;
+        throw new Error(valMessage);
+      } else {
+        return type;
+      }
+    } else {
+      valMessage = `'${
+        type[0].toUpperCase() + type.slice(1)
+      }' field must not be empty!`;
+      throw new Error(valMessage);
+    }
+  } catch (err) {
+    throw new Error(
+      valMessage ? valMessage : "Server error: file checking failed!"
+    );
+  }
+};

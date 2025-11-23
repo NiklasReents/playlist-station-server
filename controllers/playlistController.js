@@ -86,6 +86,8 @@ exports.create_playlist = [
     .escape()
     .isLength({ min: 1, max: 100 })
     .withMessage("'Playlist' field must contain between 1 and 100 characters!"),
+  body("image").custom((image, { req }) => utils.checkFiles(req, "image")),
+  body("audio").custom((audio, { req }) => utils.checkFiles(req, "audio")),
   body("song")
     .trim()
     .escape()
