@@ -135,14 +135,16 @@ exports.create_playlist = [
 
           await song.save();
           await newPlaylist.save();
-          res.status(200).json({ success: "New playlist uploaded!" });
+          res.status(200).json({
+            success: `New playlist '${newPlaylist.playlist}' uploaded!`,
+          });
         }
         // update existing playlist
         else {
           existingPlaylist.songs.push(song._id);
           await song.save();
           await existingPlaylist.save();
-          res.status(200).json({ success: "Song uploaded!" });
+          res.status(200).json({ success: `Song '${song.song}' uploaded!` });
         }
       }
     } catch (err) {
@@ -152,5 +154,37 @@ exports.create_playlist = [
 ];
 
 // remove a song from a logged in user's playlist
+exports.delete_song = [
+  upload.none(),
+  async (req, res, next) => {
+    try {
+      // search playlist that contains the song to be deleted
+      const currentPlaylist = await Playlist.findOne(
+        {
+          songs: req.body.id,
+        },
+        "playlist songs"
+      )
+        .populate("songs")
+        .exec();
+      // search and delete song contained in the current playlist (and the playlist itself if its last song was deleted)
+      const songToDelete = await Song.findByIdAndDelete(req.body.id).exec();
+      if (songToDelete && currentPlaylist.songs.length > 1) {
+        res.status(200).json({
+          success: `'${songToDelete.song}' was successfully deleted!`,
+        });
+      } else if (songToDelete && currentPlaylist.songs.length === 1) {
+        await currentPlaylist.deleteOne();
+        res.status(200).json({
+          success: `'${songToDelete.song}' and playlist '${currentPlaylist.playlist}' were successfully deleted!`,
+        });
+      } else {
+        res.status(404).json({ error: "No song found!" });
+      }
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+];
 
 // delete a logged in user's playlist

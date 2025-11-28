@@ -22,4 +22,7 @@ router.post("/get-playlist", playlistController.get_playlist);
 // playlist/song creation route
 router.post("/create-playlist", playlistController.create_playlist);
 
+// song deletion route
+router.delete("/delete-song", playlistController.delete_song);
+
 module.exports = router;
