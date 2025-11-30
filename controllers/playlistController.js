@@ -23,55 +23,6 @@ const upload = multer({ storage: storage });
 // create user id object to be passed as a reference to "verifyUser" (token verification function)
 const userId = { _id: "" };
 
-// get all playlist names for a verified user (as options rendered into a "select" container on the frontend)
-exports.get_playlistNames = [
-  (req, res, next) => utils.verifyUser(req, res, next, userId),
-  async (req, res, next) => {
-    try {
-      const playlistNames = await Playlist.find(
-        { user: userId._id },
-        "playlist"
-      ).exec();
-
-      if (playlistNames.length) {
-        res.status(200).json({
-          success: "Playlist(s) loaded!",
-          playlistNames: playlistNames,
-        });
-      } else {
-        res
-          .status(404)
-          .json({ error: "No playlists found. Go and create a few!" });
-      }
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  },
-];
-
-// get the full selected playlist for a logged in user (get a default list if no user is logged in)
-exports.get_playlist = [
-  (req, res, next) => utils.verifyUser(req, res, next, userId),
-  upload.none(),
-  async (req, res, next) => {
-    try {
-      const playlist = await Playlist.findOne({
-        playlist: req.body.playlist,
-        user: userId._id,
-      })
-        .populate("songs")
-        .exec();
-      if (playlist) {
-        res.status(200).json({ playlist: playlist.songs });
-      } else {
-        res.status(404).json({ error: "No playlist found!" });
-      }
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  },
-];
-
 // create a new playlist OR add a new song to an existing playlist (receive data via form upload by a verified user from the frontend)
 exports.create_playlist = [
   (req, res, next) => utils.verifyUser(req, res, next, userId),
@@ -153,6 +104,58 @@ exports.create_playlist = [
   },
 ];
 
+// get all playlist names for a verified user (as options rendered into a "select" container on the frontend)
+exports.get_playlistNames = [
+  (req, res, next) => utils.verifyUser(req, res, next, userId),
+  async (req, res, next) => {
+    try {
+      const playlistNames = await Playlist.find(
+        { user: userId._id },
+        "playlist"
+      ).exec();
+
+      if (playlistNames.length) {
+        res.status(200).json({
+          success: "Playlist(s) loaded!",
+          playlistNames: playlistNames,
+        });
+      } else {
+        res
+          .status(404)
+          .json({ error: "No playlists found. Go and create a few!" });
+      }
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+];
+
+// get the full selected playlist for a logged in user
+exports.get_playlist = [
+  (req, res, next) => utils.verifyUser(req, res, next, userId),
+  upload.none(),
+  async (req, res, next) => {
+    try {
+      const playlist = await Playlist.findOne(
+        {
+          playlist: req.body.playlist,
+          user: userId._id,
+        },
+        "songs"
+      )
+        .populate("songs")
+        .exec();
+      if (playlist) {
+        res.status(200).json({ playlist: playlist });
+      } else {
+        res.status(404).json({ error: "No playlist found!" });
+      }
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+];
+
 // remove a song from a logged in user's playlist
 exports.delete_song = [
   upload.none(),
@@ -188,3 +191,22 @@ exports.delete_song = [
 ];
 
 // delete a logged in user's playlist
+exports.delete_playlist = [
+  upload.none(),
+  async (req, res, next) => {
+    try {
+      const playlistToDelete = await Playlist.findByIdAndDelete(req.body.id);
+      if (playlistToDelete) {
+        res.status(200).json({
+          success: `'${playlistToDelete.playlist}' was successfully deleted!`,
+        });
+      } else {
+        res.status(404).json({
+          error: "No playlist found!",
+        });
+      }
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+];

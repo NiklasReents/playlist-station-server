@@ -13,16 +13,19 @@ router.get("/", async (req, res, next) => {
   res.json(playlists);
 });
 
-// playlist name retrieval route
-router.get("/get-playlistnames", playlistController.get_playlistNames);
-
-// get a playlist
-router.post("/get-playlist", playlistController.get_playlist);
-
 // playlist/song creation route
 router.post("/create-playlist", playlistController.create_playlist);
 
+// playlist name retrieval route
+router.get("/get-playlistnames", playlistController.get_playlistNames);
+
+// playlist retrieval route
+router.post("/get-playlist", playlistController.get_playlist);
+
 // song deletion route
 router.delete("/delete-song", playlistController.delete_song);
+
+// playlist deletion route
+router.delete("/delete-playlist", playlistController.delete_playlist);
 
 module.exports = router;
