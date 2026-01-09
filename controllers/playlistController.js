@@ -210,3 +210,39 @@ exports.delete_playlist = [
     }
   },
 ];
+
+// update a logged in user's playlist after a drag and drop operation (changing song order)
+exports.update_playlist = [
+  upload.none(),
+  async (req, res, next) => {
+    try {
+      const playlistSongs = await Playlist.findById(
+        req.body.id,
+        "songs"
+      ).populate("songs");
+      if (playlistSongs) {
+        const dragIndex = playlistSongs.songs.findIndex(
+          (v) => String(v._id) === req.body.dragIndex
+        );
+        const dropIndex = playlistSongs.songs.findIndex(
+          (v) => String(v._id) === req.body.dropIndex
+        );
+        playlistSongs.songs[dragIndex] = playlistSongs.songs.splice(
+          dropIndex,
+          1,
+          playlistSongs.songs[dragIndex]
+        )[0];
+        playlistSongs.save();
+        res.status(200).json({
+          success: `'${playlistSongs.songs[dropIndex].song}' and '${playlistSongs.songs[dragIndex].song}' were swapped!`,
+        });
+      } else {
+        res.status(404).json({
+          error: "No songs found!",
+        });
+      }
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+];

@@ -28,4 +28,7 @@ router.delete("/delete-song", playlistController.delete_song);
 // playlist deletion route
 router.delete("/delete-playlist", playlistController.delete_playlist);
 
+// playlist update route (song order)
+router.put("/update-playlist", playlistController.update_playlist);
+
 module.exports = router;
