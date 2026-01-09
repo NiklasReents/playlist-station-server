@@ -12,6 +12,8 @@ const EmailToken = require("../models/emailtoken.js");
 const Playlist = require("../models/playlist.js");
 // create a multer instance for file/field parsing
 const upload = multer();
+// create user id object to be passed as a reference to "verifyUser" (token verification function)
+const userId = { _id: "" };
 
 // register a new user (sanitize and validate data, hash password, create new user)
 exports.register_user = [
@@ -254,24 +256,19 @@ exports.reset_password = [
 
 // delete a logged in user (include user's playlists as well)
 exports.delete_user = [
-  // parse form data upload
-  upload.none(),
+  // verify user token
+  (req, res, next) => utils.verifyUser(req, res, next, userId),
   async (req, res, next) => {
     try {
-      const userId = await User.findOne(
-        { username: req.body.username },
-        "_id"
-      ).exec(); // NOTE: query with id instead (via token)?
-
-      if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-        res.status(404).json({ error: "No user found/invalid id!" });
-      } else {
+      if (userId._id) {
         // delete the given user and all their playlists
         await Playlist.deleteMany({ user: userId._id }).exec();
-        await User.findOneAndDelete(userId).exec();
+        const user = await User.findOneAndDelete(userId).exec();
         res
           .status(200)
-          .json({ success: `${req.body.username} was successfully deleted!` });
+          .json({ success: `${user.username} was successfully deleted!` });
+      } else {
+        res.status(404).json({ error: "No user found/invalid id!" });
       }
     } catch (err) {
       res.status(500).json({ error: "Server error: user deletion failed!" });
